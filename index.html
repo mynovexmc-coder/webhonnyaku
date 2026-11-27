@@ -1,113 +1,276 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>押すな</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700;900&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-  <style>
+&lt;!DOCTYPE html&gt;
+
+&lt;html lang=&quot;ja&quot;&gt;
+
+&lt;head&gt;
+
+  &lt;meta charset=&quot;UTF-8&quot; /&gt;
+
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot; /&gt;
+
+  &lt;title&gt;100000物理演算・即時自動実行&lt;/title&gt;
+
+  &lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.googleapis.com&quot; /&gt;
+
+  &lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.gstatic.com&quot; crossorigin /&gt;
+
+  &lt;link href=&quot;https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700;900&amp;display=swap&quot; rel=&quot;stylesheet&quot; /&gt;
+
+  &lt;script src=&quot;https://cdn.tailwindcss.com/3.4.17&quot;&gt;&lt;/script&gt;
+
+  &lt;style&gt;
+
     html, body {
+
       margin: 0;
+
       padding: 0;
+
       width: 100%;
+
       height: 100%;
+
       overflow: hidden;
+
       background-color: #090d16;
-      font-family: "Noto Sans JP", sans-serif;
+
+      font-family: &quot;Noto Sans JP&quot;, sans-serif;
+
     }
-    #stage {
+
+    #physCanvas {
+
       position: fixed;
+
       inset: 0;
+
+      width: 100%;
+
+      height: 100%;
+
       pointer-events: none;
-    }
-    .dot-el {
-      position: absolute;
-      width: 8px;
-      height: 8px;
-      border-radius: 2px;
-      will-change: transform;
-    }
-    #btnDontPress {
-      position: relative;
-      z-index: 10;
-    }
-  </style>
-</head>
-<body class="flex items-center justify-center select-none">
-  <div id="stage"></div>
-  <button id="btnDontPress" type="button" class="px-8 py-4 text-xl sm:text-2xl font-black rounded-2xl bg-red-600 hover:bg-red-500 active:scale-95 text-white shadow-xl transition">
-    押すな
-  </button>
 
-  <script>
+    }
+
+  &lt;/style&gt;
+
+&lt;/head&gt;
+
+&lt;body class=&quot;select-none&quot;&gt;
+
+  &lt;canvas id=&quot;physCanvas&quot;&gt;&lt;/canvas&gt;
+
+
+
+  &lt;script&gt;
+
     (function () {
-      const btn = document.getElementById('btnDontPress');
-      const stage = document.getElementById('stage');
-      const colors = ['#38bdf8', '#f472b6', '#fbbf24', '#34d399', '#818cf8'];
 
-      let nodes = [];
+      const TARGET = 100000;
+
+      const canvas = document.getElementById(&#39;physCanvas&#39;);
+
+      const ctx = canvas.getContext(&#39;2d&#39;);
+
+
+
+      const colors = [&#39;#38bdf8&#39;, &#39;#f472b6&#39;, &#39;#fbbf24&#39;, &#39;#34d399&#39;, &#39;#818cf8&#39;];
+
+      const px = new Float32Array(TARGET);
+
+      const py = new Float32Array(TARGET);
+
+      const vx = new Float32Array(TARGET);
+
+      const vy = new Float32Array(TARGET);
+
+      const pCol = new Uint8Array(TARGET);
+
+
+
+      let activeCount = 0;
+
       let rafId = null;
+
       let lastTime = 0;
 
-      function summon10000() {
-        if (rafId !== null) {
-          cancelAnimationFrame(rafId);
-          rafId = null;
-        }
-        stage.innerHTML = '';
-        nodes = [];
 
-        const w = window.innerWidth || 800;
-        const h = window.innerHeight || 600;
-        const frag = document.createDocumentFragment();
 
-        for (let i = 0; i < 10000; i++) {
-          const el = document.createElement('div');
-          el.className = 'dot-el';
-          el.style.backgroundColor = colors[i % colors.length];
-          const x = Math.random() * Math.max(20, w - 12);
-          const y = Math.random() * Math.max(20, h - 12);
-          el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
-          frag.appendChild(el);
-          nodes.push({
-            el,
-            x,
-            y,
-            vx: (Math.random() - 0.5) * 200,
-            vy: (Math.random() - 0.5) * 200
-          });
-        }
+      function resizeCanvas() {
 
-        stage.appendChild(frag);
-        lastTime = 0;
+        const w = window.innerWidth || document.documentElement.clientWidth || 800;
 
-        function tick(now) {
-          const dt = lastTime ? Math.min(0.05, (now - lastTime) * 0.001) : 0.016;
-          lastTime = now;
+        const h = window.innerHeight || document.documentElement.clientHeight || 600;
 
-          const vw = window.innerWidth || 800;
-          const vh = window.innerHeight || 600;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-          for (let i = 0; i < nodes.length; i++) {
-            const n = nodes[i];
-            n.x += n.vx * dt;
-            n.y += n.vy * dt;
-            if (n.x < 0 || n.x > vw - 8) n.vx *= -1;
-            if (n.y < 0 || n.y > vh - 8) n.vy *= -1;
-            n.el.style.transform = `translate3d(${n.x.toFixed(1)}px, ${n.y.toFixed(1)}px, 0)`;
-          }
+        canvas.width = Math.max(300, Math.floor(w * dpr));
 
-          rafId = requestAnimationFrame(tick);
-        }
+        canvas.height = Math.max(200, Math.floor(h * dpr));
 
-        rafId = requestAnimationFrame(tick);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
       }
 
-      btn.addEventListener('click', summon10000);
+
+
+      function summon100000Physics() {
+
+        resizeCanvas();
+
+        const vw = window.innerWidth || 800;
+
+        const vh = window.innerHeight || 600;
+
+
+
+        for (let i = 0; i &lt; TARGET; i++) {
+
+          px[i] = Math.random() * vw;
+
+          py[i] = Math.random() * (vh * 0.5);
+
+          vx[i] = (Math.random() - 0.5) * 420;
+
+          vy[i] = (Math.random() - 0.5) * 260 - 140;
+
+          pCol[i] = i % colors.length;
+
+        }
+
+        activeCount = TARGET;
+
+
+
+        if (rafId !== null) {
+
+          cancelAnimationFrame(rafId);
+
+          rafId = null;
+
+        }
+
+        lastTime = 0;
+
+
+
+        function tick(now) {
+
+          const dt = lastTime ? Math.min(0.05, (now - lastTime) * 0.001) : 0.016;
+
+          lastTime = now;
+
+
+
+          const w = window.innerWidth || 800;
+
+          const h = window.innerHeight || 600;
+
+          const gravity = 820;
+
+          const bounce = 0.82;
+
+          const drag = 0.995;
+
+
+
+          for (let i = 0; i &lt; activeCount; i++) {
+
+            vy[i] += gravity * dt;
+
+            vx[i] *= drag;
+
+            vy[i] *= drag;
+
+            px[i] += vx[i] * dt;
+
+            py[i] += vy[i] * dt;
+
+
+
+            if (px[i] &lt; 0) {
+
+              px[i] = 0;
+
+              vx[i] = Math.abs(vx[i]) * bounce;
+
+            } else if (px[i] &gt; w) {
+
+              px[i] = w;
+
+              vx[i] = -Math.abs(vx[i]) * bounce;
+
+            }
+
+
+
+            if (py[i] &lt; 0) {
+
+              py[i] = 0;
+
+              vy[i] = Math.abs(vy[i]) * bounce;
+
+            } else if (py[i] &gt; h - 4) {
+
+              py[i] = h - 4;
+
+              vy[i] = -Math.abs(vy[i]) * bounce;
+
+            }
+
+          }
+
+
+
+          ctx.fillStyle = &#39;#090d16&#39;;
+
+          ctx.fillRect(0, 0, w, h);
+
+
+
+          for (let c = 0; c &lt; colors.length; c++) {
+
+            ctx.fillStyle = colors[c];
+
+            ctx.beginPath();
+
+            for (let i = 0; i &lt; activeCount; i++) {
+
+              if (pCol[i] === c) {
+
+                ctx.rect(px[i], py[i], 3, 3);
+
+              }
+
+            }
+
+            ctx.fill();
+
+          }
+
+
+
+          rafId = requestAnimationFrame(tick);
+
+        }
+
+
+
+        rafId = requestAnimationFrame(tick);
+
+      }
+
+
+
+      window.addEventListener(&#39;resize&#39;, resizeCanvas);
+
+      summon100000Physics();
+
     })();
-  </script>
-</body>
-</html>
+
+  &lt;/script&gt;
+
+&lt;/body&gt;
+
+&lt;/html&gt;
+
