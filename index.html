@@ -1,14 +1,14 @@
-&lt;!DOCTYPE html&gt;
-&lt;html lang=&quot;ja&quot;&gt;
-&lt;head&gt;
-  &lt;meta charset=&quot;UTF-8&quot; /&gt;
-  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot; /&gt;
-  &lt;title&gt;100000物理演算・即時自動実行&lt;/title&gt;
-  &lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.googleapis.com&quot; /&gt;
-  &lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.gstatic.com&quot; crossorigin /&gt;
-  &lt;link href=&quot;https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700;900&amp;display=swap&quot; rel=&quot;stylesheet&quot; /&gt;
-  &lt;script src=&quot;https://cdn.tailwindcss.com/3.4.17&quot;&gt;&lt;/script&gt;
-  &lt;style&gt;
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>押すな（1000000物理演算）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700;900&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <style>
     html, body {
       margin: 0;
       padding: 0;
@@ -16,7 +16,7 @@
       height: 100%;
       overflow: hidden;
       background-color: #090d16;
-      font-family: &quot;Noto Sans JP&quot;, sans-serif;
+      font-family: "Noto Sans JP", sans-serif;
     }
     #physCanvas {
       position: fixed;
@@ -25,18 +25,26 @@
       height: 100%;
       pointer-events: none;
     }
-  &lt;/style&gt;
-&lt;/head&gt;
-&lt;body class=&quot;select-none&quot;&gt;
-  &lt;canvas id=&quot;physCanvas&quot;&gt;&lt;/canvas&gt;
+    #btnDontPress {
+      position: relative;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center select-none">
+  <canvas id="physCanvas"></canvas>
+  <button id="btnDontPress" type="button" class="px-8 py-4 text-xl sm:text-2xl font-black rounded-2xl bg-red-600 hover:bg-red-500 active:scale-95 text-white shadow-xl transition">
+    押すな
+  </button>
 
-  &lt;script&gt;
+  <script>
     (function () {
-      const TARGET = 4294967295;
-      const canvas = document.getElementById(&#39;physCanvas&#39;);
-      const ctx = canvas.getContext(&#39;2d&#39;);
+      const TARGET = 1000000;
+      const canvas = document.getElementById('physCanvas');
+      const ctx = canvas.getContext('2d');
+      const btn = document.getElementById('btnDontPress');
 
-      const colors = [&#39;#38bdf8&#39;, &#39;#f472b6&#39;, &#39;#fbbf24&#39;, &#39;#34d399&#39;, &#39;#818cf8&#39;];
+      const colors = ['#38bdf8', '#f472b6', '#fbbf24', '#34d399', '#818cf8'];
       const px = new Float32Array(TARGET);
       const py = new Float32Array(TARGET);
       const vx = new Float32Array(TARGET);
@@ -44,6 +52,7 @@
       const pCol = new Uint8Array(TARGET);
 
       let activeCount = 0;
+      let heavyTriggered = false;
       let rafId = null;
       let lastTime = 0;
 
@@ -56,20 +65,7 @@
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
 
-      function summon100000Physics() {
-        resizeCanvas();
-        const vw = window.innerWidth || 800;
-        const vh = window.innerHeight || 600;
-
-        for (let i = 0; i &lt; TARGET; i++) {
-          px[i] = Math.random() * vw;
-          py[i] = Math.random() * (vh * 0.5);
-          vx[i] = (Math.random() - 0.5) * 420;
-          vy[i] = (Math.random() - 0.5) * 260 - 140;
-          pCol[i] = i % colors.length;
-        }
-        activeCount = TARGET;
-
+      function runPhysicsLoop() {
         if (rafId !== null) {
           cancelAnimationFrame(rafId);
           rafId = null;
@@ -82,43 +78,51 @@
 
           const w = window.innerWidth || 800;
           const h = window.innerHeight || 600;
-          const gravity = 820;
+          const gravity = 840;
           const bounce = 0.82;
           const drag = 0.995;
 
-          for (let i = 0; i &lt; activeCount; i++) {
+          for (let i = 0; i < activeCount; i++) {
             vy[i] += gravity * dt;
             vx[i] *= drag;
             vy[i] *= drag;
             px[i] += vx[i] * dt;
             py[i] += vy[i] * dt;
 
-            if (px[i] &lt; 0) {
+            if (px[i] < 0) {
               px[i] = 0;
               vx[i] = Math.abs(vx[i]) * bounce;
-            } else if (px[i] &gt; w) {
+            } else if (px[i] > w) {
               px[i] = w;
               vx[i] = -Math.abs(vx[i]) * bounce;
             }
 
-            if (py[i] &lt; 0) {
+            if (py[i] < 0) {
               py[i] = 0;
               vy[i] = Math.abs(vy[i]) * bounce;
-            } else if (py[i] &gt; h - 4) {
-              py[i] = h - 4;
+            } else if (py[i] > h - 3) {
+              py[i] = h - 3;
               vy[i] = -Math.abs(vy[i]) * bounce;
             }
           }
 
-          ctx.fillStyle = &#39;#090d16&#39;;
+          // Extra physics step when "押すな" has been pressed
+          if (heavyTriggered) {
+            for (let i = 0; i < activeCount; i++) {
+              vx[i] += Math.sin(py[i] * 0.02 + px[i] * 0.02) * 35 * dt;
+              vy[i] += Math.cos(px[i] * 0.02 - py[i] * 0.02) * 35 * dt;
+            }
+          }
+
+          ctx.fillStyle = '#090d16';
           ctx.fillRect(0, 0, w, h);
 
-          for (let c = 0; c &lt; colors.length; c++) {
+          for (let c = 0; c < colors.length; c++) {
             ctx.fillStyle = colors[c];
             ctx.beginPath();
-            for (let i = 0; i &lt; activeCount; i++) {
+            for (let i = 0; i < activeCount; i++) {
               if (pCol[i] === c) {
-                ctx.rect(px[i], py[i], 3, 3);
+                ctx.rect(px[i], py[i], 2, 2);
               }
             }
             ctx.fill();
@@ -130,9 +134,27 @@
         rafId = requestAnimationFrame(tick);
       }
 
-      window.addEventListener(&#39;resize&#39;, resizeCanvas);
-      summon100000Physics();
+      function onDontPressClick() {
+        resizeCanvas();
+        const vw = window.innerWidth || 800;
+        const vh = window.innerHeight || 600;
+
+        for (let i = 0; i < TARGET; i++) {
+          px[i] = Math.random() * vw;
+          py[i] = Math.random() * (vh * 0.5);
+          vx[i] = (Math.random() - 0.5) * 440;
+          vy[i] = (Math.random() - 0.5) * 280 - 150;
+          pCol[i] = i % colors.length;
+        }
+        activeCount = TARGET;
+        heavyTriggered = true;
+        runPhysicsLoop();
+      }
+
+      window.addEventListener('resize', resizeCanvas);
+      btn.addEventListener('click', onDontPressClick);
+      resizeCanvas();
     })();
-  &lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
+  </script>
+</body>
+</html>
