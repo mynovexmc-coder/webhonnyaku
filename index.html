@@ -1,1 +1,113 @@
-# webhonnyaku
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>押すな</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700;900&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #090d16;
+      font-family: "Noto Sans JP", sans-serif;
+    }
+    #stage {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+    .dot-el {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      will-change: transform;
+    }
+    #btnDontPress {
+      position: relative;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center select-none">
+  <div id="stage"></div>
+  <button id="btnDontPress" type="button" class="px-8 py-4 text-xl sm:text-2xl font-black rounded-2xl bg-red-600 hover:bg-red-500 active:scale-95 text-white shadow-xl transition">
+    押すな
+  </button>
+
+  <script>
+    (function () {
+      const btn = document.getElementById('btnDontPress');
+      const stage = document.getElementById('stage');
+      const colors = ['#38bdf8', '#f472b6', '#fbbf24', '#34d399', '#818cf8'];
+
+      let nodes = [];
+      let rafId = null;
+      let lastTime = 0;
+
+      function summon10000() {
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+        stage.innerHTML = '';
+        nodes = [];
+
+        const w = window.innerWidth || 800;
+        const h = window.innerHeight || 600;
+        const frag = document.createDocumentFragment();
+
+        for (let i = 0; i < 10000; i++) {
+          const el = document.createElement('div');
+          el.className = 'dot-el';
+          el.style.backgroundColor = colors[i % colors.length];
+          const x = Math.random() * Math.max(20, w - 12);
+          const y = Math.random() * Math.max(20, h - 12);
+          el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+          frag.appendChild(el);
+          nodes.push({
+            el,
+            x,
+            y,
+            vx: (Math.random() - 0.5) * 200,
+            vy: (Math.random() - 0.5) * 200
+          });
+        }
+
+        stage.appendChild(frag);
+        lastTime = 0;
+
+        function tick(now) {
+          const dt = lastTime ? Math.min(0.05, (now - lastTime) * 0.001) : 0.016;
+          lastTime = now;
+
+          const vw = window.innerWidth || 800;
+          const vh = window.innerHeight || 600;
+
+          for (let i = 0; i < nodes.length; i++) {
+            const n = nodes[i];
+            n.x += n.vx * dt;
+            n.y += n.vy * dt;
+            if (n.x < 0 || n.x > vw - 8) n.vx *= -1;
+            if (n.y < 0 || n.y > vh - 8) n.vy *= -1;
+            n.el.style.transform = `translate3d(${n.x.toFixed(1)}px, ${n.y.toFixed(1)}px, 0)`;
+          }
+
+          rafId = requestAnimationFrame(tick);
+        }
+
+        rafId = requestAnimationFrame(tick);
+      }
+
+      btn.addEventListener('click', summon10000);
+    })();
+  </script>
+</body>
+</html>
